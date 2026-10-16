@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Редактор чеков</title>
+<style>
+:root{color-scheme:dark;--bg:#090b10;--panel:#121722;--line:#283244;--text:#eef3ff;--muted:#9aa8bd;--accent:#6d8cff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172033,#090b10 55%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008;cursor:crosshair}.canvasbox canvas{display:block;max-width:100%;height:auto}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+.editor-popup{margin-top:12px;padding:12px;background:#172033;border:1px solid var(--line);border-radius:10px;display:none;width:100%}
+@media(max-width:760px){main{padding:13px}.layout{grid-template-columns:1fr}.preview-wrap{min-height:250px}.top{align-items:flex-start}}
+</style>
+</head>
+<body><main>
+<header class="top"><div class="logo">DE</div><div><strong>Редактор</strong><div class="sub">Редактор Pdf </div></div></header>
+<div class="warning">By shizov</div>
+<div class="layout">
+<section class="panel">
+<h2>Настройки</h2>
+<label class="field" for="file">Исходный PDF</label><input id="file" type="file" accept="application/pdf">
+<label class="field" for="date">Новая дата</label><input id="date" type="date" value="2026-10-16">
+<label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
+<button class="btn" id="refresh">Обновить</button>
+<button class="btn secondary" id="save">Скачать</button>
+<div class="note">Дата размещается в области поля «Дата отправки перевода». Шрифт предпросмотра приближен к оригинальному (Tahoma, около 12 pt); из-за особенностей браузеров точное совпадение встроенного PDF-шрифта не гарантируется.</div>
+</section>
+<section class="panel">
+  <h2>Предпросмотр</h2>
+  <div class="preview-wrap" id="wrap">
+    <div class="empty" id="empty">Загрузи PDF, чтобы увидеть страницу здесь.</div>
+    <div class="canvasbox" id="canvasbox" hidden><canvas id="page"></canvas></div>
+    
+    <div class="editor-popup" id="editorPopup">
+      <div class="small" id="popupInfo" style="margin-bottom:6px">Найден текст</div>
+      <input type="text" id="customReplaceText" placeholder="Введите новый текст...">
+      <button class="btn" id="applyCustomText" style="margin-top:8px">Заменить на холсте</button>
+    </div>
+  </div>
+  <div class="small" id="status" style="margin-top:10px">Файл обрабатывается локально в браузере.</div>
+</section>
+</div></main>
+<script>
+const $=id=>document.getElementById(id);
+
+function loadScript(urls) {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    function tryNext() {
+      if (i >= urls.length) {
+        reject(new Error('Не удалось загрузить библиотеку. Проверьте интернет-соединение или настройки блокировщиков рекламы.'));
+        return;
+      }
+      const currentUrl = urls[i++];
+      const s = document.createElement('script');
+      s.src = currentUrl;
+      s.crossOrigin = 'anonymous';
+      s.onload = () => resolve();
+      s.onerror = () => {
+        s.remove();
+        tryNext();
+      };
+      document.head.appendChild(s);
+    }
+    tryNext();
+  });
+}
+
+let pdfDoc=null, baseCanvas=null, pageW=0, pageH=0, scale=1, libsReady=false;
+let textItems = [];
+let customReplacements = [];
+let activeSelection = null;
+
+(async()=>{
+  try {
+    $('status').textContent='Подключаю модуль чтения PDF…';
+    await loadScript([
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+    ]);
+    
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    $('status').textContent='Подключаю модуль экспорта…';
+    await loadScript([
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ]);
+
+    libsReady = true;
+    $('status').textContent='Готово. Выберите PDF-файл.';
+  } catch(err) {
+    $('status').textContent = 'Ошибка загрузки: ' + err.message;
+    console.error(err);
+  }
+})();
+
+$('date').addEventListener('change',drawPreview);$('time').addEventListener('change',drawPreview);
+
+$('file').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  try {
+    if(!libsReady) throw new Error('Библиотеки ещё загружаются. Подождите пару секунд.');
+    if(f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+      throw new Error('Пожалуйста, выберите файл в формате PDF.');
+    }
+    $('status').textContent = 'Загрузка PDF…';
+    const bytes = await f.arrayBuffer();
+    
+    pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdfDoc.getPage(1);
+    const textContent = await page.getTextContent();
+    const vp = page.getViewport({ scale: 1.6 });
+    scale = vp.scale;
+    pageW = vp.width;
+    pageH = vp.height;
+
+    textItems = textContent.items.map(item => {
+      const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
+      return {
+        str: item.str,
+        x: tx[4],
+        y: tx[5],
+        width: item.width * vp.scale,
+        height: (item.height || 10) * vp.scale,
+        fontPx: Math.abs(tx[3])
+      };
+    });
+    
+    baseCanvas = document.createElement('canvas');
+    baseCanvas.width = Math.ceil(vp.width);
+    baseCanvas.height = Math.ceil(vp.height);
+    
+    await page.render({
+      canvasContext: baseCanvas.getContext('2d'),
+      viewport: vp
+    }).promise;
+    
+    $('empty').hidden = true;
+    $('canvasbox').hidden = false;
+    customReplacements = [];
+    $('editorPopup').style.display = 'none';$('status').textContent = `Загружена страница 1 из ${pdfDoc.numPages}.`;
+    drawPreview();
+  } catch(err) {
+    $('status').textContent = 'Ошибка: ' + (err && err.message ? err.message : 'не удалось открыть PDF');
+    console.error(err);
+  }
+});
+
+function newDateText(){
+  let d = $('date').value;
+  if(!d) return '';
+  let [y, m, day] = d.split('-');
+  return `${day}.${m}.${y}  ${$('time').value||'00:00'}`;
+}
+
+function compose(){
+  if(!baseCanvas) return null;
+  const c = document.createElement('canvas');
+  c.width = baseCanvas.width;
+  c.height = baseCanvas.height;
+  const x = c.getContext('2d');
+  x.drawImage(baseCanvas, 0, 0);
+
+  const factor = c.width / 595.0;
+  const px = Math.min(c.width - 180 * factor, Math.max(20 * factor, 304.75 * factor));
+  const py = Math.min(c.height - 12 * factor, Math.max(30 * factor, 177.6 * factor));
+  
+  x.fillStyle = '#fff';
+  x.fillRect(px - 2 * factor, py - 15 * factor, 165 * factor, 19 * factor);
+  
+  x.fillStyle = '#111';
+  x.font = `${12 * factor}px Tahoma, Arial, sans-serif`;
+  x.textBaseline = 'alphabetic';
+  x.fillText(newDateText(), px, py);
+
+  // Пользовательские правки по клику
+  customReplacements.forEach(item => {
+    x.fillStyle = '#fff';
+    x.fillRect(item.x - 4, item.y - item.height - 2, item.width + 12, item.height + 8);
+    
+    x.fillStyle = '#111';
+    x.font = `${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
+    x.textBaseline = 'alphabetic';
+    x.fillText(item.text, item.x, item.y);
+  });
+
+  // Подсветка выбранного блока
+  if(activeSelection) {
+    x.strokeStyle = '#6d8cff';
+    x.lineWidth = 2;
+    x.strokeRect(activeSelection.x - 4, activeSelection.y - activeSelection.height - 2, activeSelection.width + 12, activeSelection.height + 8);
+  }
+
+  return c;
+}
+
+function drawPreview(){
+  if(!baseCanvas) return;
+  const c = compose();
+  const out = $('page');
+  out.width = c.width;
+  out.height = c.height;
+  out.getContext('2d').drawImage(c, 0, 0);
+}
+
+// Клик по превью для поиска текста
+$('page').addEventListener('click', e => {
+  if(!baseCanvas || textItems.length === 0) return;
+  const rect = e.target.getBoundingClientRect();
+  const scaleX = e.target.width / rect.width;
+  const scaleY = e.target.height / rect.height;
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  const found = textItems.find(item => {
+    return clickX >= item.x - 10 && 
+           clickX <= item.x + item.width + 30 && 
+           clickY >= item.y - item.height - 5 && 
+           clickY <= item.y + 10;
+  });
+
+  if(found) {
+    activeSelection = found;
+    $('popupInfo').textContent = `Найден текст: "${found.str}"`;
+    $('customReplaceText').value = found.str;
+    $('editorPopup').style.display = 'block';
+    drawPreview();
+  } else {
+    activeSelection = null;
+    $('editorPopup').style.display = 'none';
+    drawPreview();
+  }
+});
+
+$('applyCustomText').addEventListener('click', () => {
+  if(!activeSelection) return;
+  const newText = $('customReplaceText').value;
+  
+  const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - activeSelection.x) < 5 && Math.abs(r.y - activeSelection.y) < 5);
+  if(existingIndex >= 0) {
+    customReplacements[existingIndex].text = newText;
+  } else {
+    customReplacements.push({
+      x: activeSelection.x,
+      y: activeSelection.y,
+      width: activeSelection.width,
+      height: activeSelection.height,
+      fontPx: activeSelection.fontPx,
+      text: newText
+    });
+  }
+  $('editorPopup').style.display = 'none';
+  activeSelection = null;
+  drawPreview();
+  $('status').textContent = 'Текст успешно изменен на холсте.';
+});
+
+$('refresh').addEventListener('click', drawPreview);
+
+$('save').addEventListener('click', () => {
+  if(!baseCanvas){
+    $('status').textContent = 'Сначала загрузите PDF.';
+    return;
+  }
+  if(!window.jspdf){
+    $('status').textContent = 'Модуль экспорта не загрузился.';
+    return;
+  }
+  const c = compose();
+  const { jsPDF } = window.jspdf;
+  const orient = c.width >= c.height ? 'landscape' : 'portrait';
+  const doc = new jsPDF({
+    orientation: orient,
+    unit: 'px',
+    format: [c.width, c.height],
+    hotfixes: ['px_scaling']
+  });
+  doc.addImage(c.toDataURL('image/jpeg', .94), 'JPEG', 0, 0, c.width, c.height);
+  doc.save('demo-copy-watermarked.pdf');
+  $('status').textContent = 'Экспортирован demo-copy-watermarked.pdf.';
+});
+</script>
+</body>
+</html>
