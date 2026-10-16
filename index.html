@@ -21,10 +21,9 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <label class="field" for="file">Исходный PDF</label><input id="file" type="file" accept="application/pdf,.pdf">
 <label class="field" for="date">Новая дата</label><input id="date" type="date" value="2026-10-16">
 <label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
-<label class="field" for="fw">Жирность текста: <span id="fwval">400</span></label><input id="fw" type="range" min="100" max="900" step="100" value="400">
 <button class="btn" id="refresh">Обновить</button>
 <button class="btn secondary" id="save">Скачать</button>
-<div class="note">Используйте ползунок жирности для настройки насыщенности измененного текста под стиль чека. Кликните по тексту для точечной правки.</div>
+<div class="note">Кликните по любому тексту на чеке, чтобы изменить его содержимое и точечно настроить жирность для конкретного блока.</div>
 </section>
 <section class="panel">
   <h2>Предпросмотр</h2>
@@ -34,8 +33,11 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
     
     <div class="editor-popup" id="editorPopup">
       <div class="small" id="popupInfo" style="margin-bottom:6px">Найден текст</div>
+      <label class="field" for="customReplaceText" style="margin:4px 0 2px">Новый текст:</label>
       <input type="text" id="customReplaceText" placeholder="Введите новый текст...">
-      <button class="btn" id="applyCustomText" style="margin-top:8px">Заменить на холсте</button>
+      <label class="field" for="customWeight" style="margin:8px 0 2px">Жирность этого текста: <span id="cwval">400</span></label>
+      <input id="customWeight" type="range" min="100" max="900" step="100" value="400">
+      <button class="btn" id="applyCustomText" style="margin-top:10px">Применить изменения</button>
     </div>
   </div>
   <div class="small" id="status" style="margin-top:10px">Инициализация...</div>
@@ -94,9 +96,8 @@ let activeSelection = null;
 })();
 
 $('date').addEventListener('change', drawPreview);
-$('time').addEventListener('change', drawPreview);$('fw').addEventListener('input', () => {
-  $('fwval').textContent =$('fw').value;
-  drawPreview();
+$('time').addEventListener('change', drawPreview);$('customWeight').addEventListener('input', () => {
+  $('cwval').textContent =$('customWeight').value;
 });
 
 $('file').addEventListener('change', async e => {
@@ -170,8 +171,8 @@ function compose(){
   x.drawImage(baseCanvas, 0, 0);
 
   const factor = c.width / 595.0;
-  const weight = $('fw').value; // Значение ползунка жирности (100 - 900)
   
+  // Отрисовка даты отправки перевода (по умолчанию жирность 400)
   const px = Math.min(c.width - 180 * factor, Math.max(20 * factor, 304.75 * factor));
   const py = Math.min(c.height - 12 * factor, Math.max(30 * factor, 177.6 * factor));
   
@@ -179,16 +180,17 @@ function compose(){
   x.fillRect(px - 2 * factor, py - 15 * factor, 165 * factor, 19 * factor);
   
   x.fillStyle = '#111';
-  x.font = `${weight} ${12 * factor}px Tahoma, Arial, sans-serif`;
+  x.font = `400 ${12 * factor}px Tahoma, Arial, sans-serif`;
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
+  // Отрисовка кастомных правок (каждая со своей индивидуальной жирностью weight)
   customReplacements.forEach(item => {
     x.fillStyle = '#fff';
     x.fillRect(item.x - 4, item.y - item.height - 2, item.width + 12, item.height + 8);
     
     x.fillStyle = '#111';
-    x.font = `${weight} ${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
+    x.font = `${item.weight || 400} ${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
   });
@@ -229,7 +231,15 @@ $('page').addEventListener('click', e => {
   if(found) {
     activeSelection = found;
     $('popupInfo').textContent = `Найден текст: "${found.str}"`;
-    $('customReplaceText').value = found.str;
+    
+    // Проверяем, есть ли уже сохраненная правка для этого блока, чтобы подтянуть её жирность
+    const existing = customReplacements.find(r => Math.abs(r.x - found.x) < 5 && Math.abs(r.y - found.y) < 5);
+    $('customReplaceText').value = existing ? existing.text : found.str;
+    
+    const currentW = existing ? existing.weight : 400;
+    $('customWeight').value = currentW;
+    $('cwval').textContent = currentW;
+
     $('editorPopup').style.display = 'block';
     drawPreview();
   } else {
@@ -242,10 +252,12 @@ $('page').addEventListener('click', e => {
 $('applyCustomText').addEventListener('click', () => {
   if(!activeSelection) return;
   const newText = $('customReplaceText').value;
+  const newWeight = parseInt($('customWeight').value) || 400;
   
   const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - activeSelection.x) < 5 && Math.abs(r.y - activeSelection.y) < 5);
   if(existingIndex >= 0) {
     customReplacements[existingIndex].text = newText;
+    customReplacements[existingIndex].weight = newWeight;
   } else {
     customReplacements.push({
       x: activeSelection.x,
@@ -253,7 +265,8 @@ $('applyCustomText').addEventListener('click', () => {
       width: activeSelection.width,
       height: activeSelection.height,
       fontPx: activeSelection.fontPx,
-      text: newText
+      text: newText,
+      weight: newWeight
     });
   }
   $('editorPopup').style.display = 'none';
