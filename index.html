@@ -7,7 +7,7 @@
 <style>
 :root{color-scheme:dark;--bg:#090b10;--panel:#121722;--line:#283244;--text:#eef3ff;--muted:#9aa8bd;--accent:#6d8cff}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172033,#090b10 55%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008}.canvasbox canvas{display:block;max-width:100%;height:auto}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.btn.picker-active{background:linear-gradient(135deg,#ff6d6d,#dd5454)!important;animation:pulse 1.5s infinite}@keyframes pulse{0%{opacity:1}50%{opacity:.7}100%{opacity:1}}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008}.canvasbox canvas{display:block;max-width:100%;height:auto}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
 .box-row{display:flex;gap:8px}.box-row>div{flex:1}
 @media(max-width:760px){main{padding:13px}.layout{grid-template-columns:1fr}.preview-wrap{min-height:250px}.top{align-items:flex-start}}
 </style>
@@ -26,6 +26,8 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
 <h2>Точечная замена текста</h2>
 
+<button class="btn secondary" id="pickerToggle" style="margin-bottom:10px">🖌 Выбрать текст на превью</button>
+
 <label class="field" for="customText">Текст замены</label>
 <input id="customText" type="text" placeholder="Например: 500 RUR или Новое имя">
 
@@ -40,7 +42,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <button class="btn" id="refresh">Обновить превью</button>
 <button class="btn secondary" id="save">Скачать</button>
 
-<div class="note">Меняй координаты X и Y, чтобы двигать текст в нужное место чека на телефоне.</div>
+<div class="note">Включи кисточку и нажми на текст в чеке, либо вводи координаты вручную.</div>
 </section>
 
 <section class="panel">
@@ -75,6 +77,9 @@ function loadScript(urls) {
 }
 
 let pdfDoc=null, baseCanvas=null, libsReady=false;
+let textItems = []; // Массив распознанного текста из PDF
+let isPickerActive = false;
+let highlightedItem = null;
 
 (async()=>{
   try {
@@ -108,6 +113,24 @@ $('posY').addEventListener('input', drawPreview);$('customWeight').addEventListe
   drawPreview();
 });
 
+// Кнопка кисточки
+$('pickerToggle').addEventListener('click', () => {
+  if(!baseCanvas) {
+    alert('Сначала загрузите PDF!');
+    return;
+  }
+  isPickerActive = !isPickerActive;
+  if(isPickerActive) {
+    $('pickerToggle').classList.add('picker-active');$('pickerToggle').textContent = '🎯 Режим выбора активен (тапни по тексту)';
+    $('status').textContent = 'Нажмите на любой текст на превью чека.';
+  } else {
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать текст на превью';
+    highlightedItem = null;
+    drawPreview();
+    $('status').textContent = 'Режим выбора отключен.';
+  }
+});
+
 $('file').addEventListener('change', async e => {
   const f = e.target.files[0];
   if(!f) return;
@@ -116,13 +139,26 @@ $('file').addEventListener('change', async e => {
       alert('Библиотеки еще загружаются!');
       return;
     }
-    $('status').textContent = 'Чтение PDF...';
+    $('status').textContent = 'Чтение PDF и текста...';
     const bytes = await f.arrayBuffer();
     
     pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
     const page = await pdfDoc.getPage(1);
+    const textContent = await page.getTextContent();
     const vp = page.getViewport({ scale: 1.5 });
     
+    // Извлекаем текстовый слой документа для точного распознавания кликов
+    textItems = textContent.items.map(item => {
+      const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
+      return {
+        str: item.str,
+        x: tx[4],
+        y: tx[5],
+        width: item.width * vp.scale,
+        height: (item.height || 10) * vp.scale
+      };
+    });
+
     baseCanvas = document.createElement('canvas');
     baseCanvas.width = Math.ceil(vp.width);
     baseCanvas.height = Math.ceil(vp.height);
@@ -134,11 +170,43 @@ $('file').addEventListener('change', async e => {
     
     $('empty').hidden = true;
     $('canvasbox').hidden = false;
-    $('status').textContent = 'Файл загружен.';
+    $('status').textContent = 'Файл загружен. Включите кисточку для выбора текста.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + err.message;
     console.error(err);
+  }
+});
+
+// Обработка клика/тапа по превью в режиме кисти
+$('page').addEventListener('click', e => {
+  if(!isPickerActive || textItems.length === 0) return;
+  const canvasEl = $('page');
+  const rect = canvasEl.getBoundingClientRect();
+  
+  const scaleX = canvasEl.width / rect.width;
+  const scaleY = canvasEl.height / rect.height;
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  // Ищем элемент, в который попал клик
+  const found = textItems.find(item => {
+    return clickX >= item.x - 15 && 
+           clickX <= item.x + item.width + 25 && 
+           clickY >= item.y - item.height - 10 && 
+           clickY <= item.y + 15;
+  });
+
+  if(found) {
+    highlightedItem = found;
+    $('customText').value = found.str;
+    $('posX').value = Math.round(found.x);
+    $('posY').value = Math.round(found.y);$('status').textContent = `Выбран текст: "${found.str}"`;
+    isPickerActive = false;
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать текст на превью';
+    drawPreview();
+  } else {
+    $('status').textContent = 'Текст не найден в этой точке. Попробуйте еще раз.';
   }
 });
 
@@ -170,21 +238,27 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Ручная вставка текста по координатам X и Y
+  // Ручная вставка / замена текста по координатам X и Y
   const userText = $('customText').value.trim();
   if(userText) {
     const rx = parseFloat($('posX').value) || 0;
     const ry = parseFloat($('posY').value) || 0;
     const rWeight = $('customWeight').value;
 
-    // Белая плашка для стирания старого текста под ними
     x.fillStyle = '#fff';
-    x.fillRect(rx - 2, ry - 14, 200, 20);
+    x.fillRect(rx - 2, ry - 14, 220, 22);
 
     x.fillStyle = '#111';
     x.font = `${rWeight} ${12 * factor}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(userText, rx, ry);
+  }
+
+  // Подсветка выбранного кисточкой элемента
+  if(highlightedItem) {
+    x.strokeStyle = '#6d8cff';
+    x.lineWidth = 3;
+    x.strokeRect(highlightedItem.x - 4, highlightedItem.y - highlightedItem.height - 4, highlightedItem.width + 12, highlightedItem.height + 8);
   }
 
   return c;
