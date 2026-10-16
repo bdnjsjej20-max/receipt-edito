@@ -67,7 +67,7 @@ function loadScript(urls) {
 
 let pdfDoc=null, baseCanvas=null, pageW=0, pageH=0, libsReady=false;
 let customReplacements = [];
-let pendingPoint = null; // Точка, куда пользователь тапнул
+let pendingPoint = null;
 
 (async()=>{
   try {
@@ -172,7 +172,6 @@ function compose(){
 
   // Кастомные пользовательские вставки
   customReplacements.forEach(item => {
-    // Белая плашка для стирания старого текста под пальцем (размер плашки 140 на 18 пикселей)
     x.fillStyle = '#fff';
     x.fillRect(item.x - 2, item.y - 14, 140, 18);
     
@@ -198,22 +197,19 @@ function drawPreview(){
   const out = $('page');
   out.width = c.width;
   out.height = c.height;
-  out.getContext('2d')->drawImage ? out.getContext('2d').drawImage(c, 0, 0) : out.getContext('2d').drawImage(c, 0, 0);
+  out.getContext('2d').drawImage(c, 0, 0);
 }
 
-// Прямой тап по процентам экрана
 function handleTouch(clientX, clientY) {
   if(!baseCanvas) return;
   const canvasEl = $('page');
   const rect = canvasEl.getBoundingClientRect();
   
-  // Получаем точные координаты клика относительно реального холста
   const x = (clientX - rect.left) / rect.width * canvasEl.width;
   const y = (clientY - rect.top) / rect.height * canvasEl.height;
 
   pendingPoint = { x, y };
   
-  // Проверяем, есть ли уже правка в этой же зоне
   const existing = customReplacements.find(r => Math.abs(r.x - x) < 30 && Math.abs(r.y - y) < 20);
   $('customReplaceText').value = existing ? existing.text : '';
   const currentW = existing ? existing.weight : 400;
@@ -242,7 +238,6 @@ $('applyCustomText').addEventListener('click', () => {
   const newText = $('customReplaceText').value;
   const newWeight = parseInt($('customWeight').value) || 400;
   
-  // Ищем, не редактируем ли мы уже существующую запись поблизости
   const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - pendingPoint.x) < 30 && Math.abs(r.y - pendingPoint.y) < 20);
   
   if(existingIndex >= 0) {
