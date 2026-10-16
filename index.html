@@ -7,13 +7,13 @@
 <style>
 :root{color-scheme:dark;--bg:#090b10;--panel:#121722;--line:#283244;--text:#eef3ff;--muted:#9aa8bd;--accent:#6d8cff}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172033,#090b10 55%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008;cursor:crosshair}.canvasbox canvas{display:block;max-width:100%;height:auto}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008;cursor:crosshair}.canvasbox canvas{display:block;max-width:100%;height:auto;touch-action:manipulation}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
 .editor-popup{margin-top:12px;padding:12px;background:#172033;border:1px solid var(--line);border-radius:10px;display:none;width:100%}
 @media(max-width:760px){main{padding:13px}.layout{grid-template-columns:1fr}.preview-wrap{min-height:250px}.top{align-items:flex-start}}
 </style>
 </head>
 <body><main>
-<header class="top"><div class="logo">DE</div><div><strong>Receipt Demo Editor</strong><div class="sub">Редактор PDF</div></div></header>
+<header class="top"><div class="logo">DE</div><div><strong>Receipt Demo Editor</strong><div class="sub">Редактор демонстрационных копий PDF</div></div></header>
 <div class="warning">By shizov</div>
 <div class="layout">
 <section class="panel">
@@ -23,7 +23,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
 <button class="btn" id="refresh">Обновить</button>
 <button class="btn secondary" id="save">Скачать</button>
-<div class="note">Кликните по любому тексту на чеке, чтобы изменить его содержимое и точечно настроить жирность для конкретного блока.</div>
+<div class="note">Нажмите пальцем по любому тексту на чеке для точечной правки содержимого и жирности.</div>
 </section>
 <section class="panel">
   <h2>Предпросмотр</h2>
@@ -146,7 +146,7 @@ $('file').addEventListener('change', async e => {
     $('empty').hidden = true;
     $('canvasbox').hidden = false;
     customReplacements = [];
-    $('editorPopup').style.display = 'none';$('status').textContent = 'Файл успешно загружен. Нажмите на текст для правки.';
+    $('editorPopup').style.display = 'none';$('status').textContent = 'Файл загружен. Нажмите на нужный текст на превью.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + (err.message || 'не удалось открыть файл');
@@ -172,7 +172,6 @@ function compose(){
 
   const factor = c.width / 595.0;
   
-  // Отрисовка даты отправки перевода (по умолчанию жирность 400)
   const px = Math.min(c.width - 180 * factor, Math.max(20 * factor, 304.75 * factor));
   const py = Math.min(c.height - 12 * factor, Math.max(30 * factor, 177.6 * factor));
   
@@ -184,7 +183,6 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Отрисовка кастомных правок (каждая со своей индивидуальной жирностью weight)
   customReplacements.forEach(item => {
     x.fillStyle = '#fff';
     x.fillRect(item.x - 4, item.y - item.height - 2, item.width + 12, item.height + 8);
@@ -197,8 +195,8 @@ function compose(){
 
   if(activeSelection) {
     x.strokeStyle = '#6d8cff';
-    x.lineWidth = 2;
-    x.strokeRect(activeSelection.x - 4, activeSelection.y - activeSelection.height - 2, activeSelection.width + 12, activeSelection.height + 8);
+    x.lineWidth = 3;
+    x.strokeRect(activeSelection.x - 6, activeSelection.y - activeSelection.height - 4, activeSelection.width + 16, activeSelection.height + 12);
   }
 
   return c;
@@ -213,26 +211,30 @@ function drawPreview(){
   out.getContext('2d').drawImage(c, 0, 0);
 }
 
-$('page').addEventListener('click', e => {
+// Универсальная функция обработки нажатия/клика для ПК и телефонов
+function handleCanvasInteraction(clientX, clientY) {
   if(!baseCanvas || textItems.length === 0) return;
-  const rect = e.target.getBoundingClientRect();
-  const scaleX = e.target.width / rect.width;
-  const scaleY = e.target.height / rect.height;
-  const clickX = (e.clientX - rect.left) * scaleX;
-  const clickY = (e.clientY - rect.top) * scaleY;
+  const canvasEl = $('page');
+  const rect = canvasEl.getBoundingClientRect();
+  
+  // Вычисляем точные координаты с учетом масштабирования CSS на телефоне
+  const scaleX = canvasEl.width / rect.width;
+  const scaleY = canvasEl.height / rect.height;
+  const clickX = (clientX - rect.left) * scaleX;
+  const clickY = (clientY - rect.top) * scaleY;
 
+  // Увеличенная зона поиска для удобства попадания пальцем
   const found = textItems.find(item => {
-    return clickX >= item.x - 15 && 
-           clickX <= item.x + item.width + 40 && 
-           clickY >= item.y - item.height - 10 && 
-           clickY <= item.y + 15;
+    return clickX >= item.x - 20 && 
+           clickX <= item.x + item.width + 50 && 
+           clickY >= item.y - item.height - 15 && 
+           clickY <= item.y + 20;
   });
 
   if(found) {
     activeSelection = found;
     $('popupInfo').textContent = `Найден текст: "${found.str}"`;
     
-    // Проверяем, есть ли уже сохраненная правка для этого блока, чтобы подтянуть её жирность
     const existing = customReplacements.find(r => Math.abs(r.x - found.x) < 5 && Math.abs(r.y - found.y) < 5);
     $('customReplaceText').value = existing ? existing.text : found.str;
     
@@ -247,7 +249,20 @@ $('page').addEventListener('click', e => {
     $('editorPopup').style.display = 'none';
     drawPreview();
   }
+}
+
+// Поддержка кликов мышкой и касаний пальцем на мобильных
+$('page').addEventListener('click', e => {
+  handleCanvasInteraction(e.clientX, e.clientY);
 });
+
+$('page').addEventListener('touchend', e => {
+  if(e.changedTouches && e.changedTouches.length > 0) {
+    const touch = e.changedTouches[0];
+    handleCanvasInteraction(touch.clientX, touch.clientY);
+    e.preventDefault(); // Предотвращаем стандартный эмулированный клик
+  }
+}, {passive: false});
 
 $('applyCustomText').addEventListener('click', () => {
   if(!activeSelection) return;
