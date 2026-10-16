@@ -36,7 +36,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <button class="btn" id="refresh">Обновить превью</button>
 <button class="btn secondary" id="save">Скачать</button>
 
-<div class="note">1. Нажми кнопку кисти.<br>2. Обведи пальцем нужный текст (например, сумму или референс).<br>3. Сайт сам распознает его и запишет в поле выше — меняй его там, и он сразу изменится на превью.</div>
+<div class="note">1. Включи кисть.<br>2. Обведи пальцем нужную строку.<br>3. Текст появится в поле выше, и ты сможешь его изменить.</div>
 </section>
 
 <section class="panel">
@@ -71,11 +71,12 @@ function loadScript(urls) {
 }
 
 let pdfDoc=null, baseCanvas=null, libsReady=false;
-let textItems = []; // Сюда сохраняются все текстовые блоки PDF с координатами
+let textItems = []; 
 let isDrawing = false;
 let startX = 0, startY = 0;
 let selectionBox = null; 
-let customEdits = []; // Активные правки
+let customEdits = []; 
+let activeEditIndex = null; // Индекс текущей активной правки
 
 (async()=>{
   try {
@@ -102,19 +103,20 @@ let customEdits = []; // Активные правки
   }
 })();
 
-$('date').addEventListener('change', drawPreview);
-$('time').addEventListener('change', drawPreview);$('customWeight').addEventListener('input', () => {
+$('date').addEventListener('change', drawPreview);$('time').addEventListener('change', drawPreview);
+
+$('customWeight').addEventListener('input', () => {
   $('cwval').textContent =$('customWeight').value;
-  if(customEdits.length > 0) {
-    customEdits[customEdits.length - 1].weight = $('customWeight').value;
+  if(activeEditIndex !== null && customEdits[activeEditIndex]) {
+    customEdits[activeEditIndex].weight = $('customWeight').value;
     drawPreview();
   }
 });
 
-// Автоматическое обновление текста на превью при вводе в поле
+// Прямое обновление текста в активной зоне при вводе в поле
 $('customText').addEventListener('input', () => {
-  if(customEdits.length > 0) {
-    customEdits[customEdits.length - 1].text = $('customText').value;
+  if(activeEditIndex !== null && customEdits[activeEditIndex]) {
+    customEdits[activeEditIndex].text = $('customText').value;
     drawPreview();
   }
 });
@@ -151,7 +153,7 @@ $('file').addEventListener('change', async e => {
     const textContent = await page.getTextContent();
     const vp = page.getViewport({ scale: 1.5 });
     
-    // Сохраняем все текстовые блоки документа с их координатами
+    // Извлекаем все текстовые блоки с точными координатами
     textItems = textContent.items.map(item => {
       const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
       return {
@@ -176,7 +178,8 @@ $('file').addEventListener('change', async e => {
     $('canvasbox').hidden = false;
     customEdits = [];
     selectionBox = null;
-    $('status').textContent = 'Файл загружен. Включите кисть и выделите текст.';
+    activeEditIndex = null;
+    $('customText').value = '';$('status').textContent = 'Файл загружен. Включите кисть и выделите текст.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + err.message;
@@ -232,39 +235,42 @@ function endRect(e) {
   if(!isDrawing || !isPickerActive) return;
   isDrawing = false;
   if(selectionBox && selectionBox.w > 4 && selectionBox.h > 4) {
-    // Ищем все текстовые элементы, которые попали внутрь нарисованной рамки
-    const matchedTexts = textItems.filter(item => {
-      return item.x >= selectionBox.x - 10 && 
-             item.x <= selectionBox.x + selectionBox.w + 10 && 
-             item.y >= selectionBox.y - 15 && 
-             item.y <= selectionBox.y + selectionBox.h + 15;
+    
+    // Ищем текст внутри или рядом с выделенной рамкой
+    const matched = textItems.filter(item => {
+      return item.x >= selectionBox.x - 20 && 
+             item.x <= selectionBox.x + selectionBox.w + 40 && 
+             item.y >= selectionBox.y - 20 && 
+             item.y <= selectionBox.y + selectionBox.h + 20;
     });
 
-    // Собираем найденный текст в одну строку
-    let recognizedText = matchedTexts.map(m => m.str).join(' ').trim();
-    
-    // Если ничего точного не нашлось внутри рамки, берем координаты рамки
-    if(!recognizedText) {
-      recognizedText = "Текст";
+    let foundText = matched.map(m => m.str).join(' ').trim();
+    if(!foundText) {
+      foundText = "Новый текст";
     }
 
-    // Подставляем распознанный текст в поле ввода
-    $('customText').value = recognizedText;
-
-    // Добавляем зону замены
-    customEdits.push({
+    // Создаем новую зону правки
+    const newEdit = {
       x: selectionBox.x,
       y: selectionBox.y + selectionBox.h - 3,
       w: selectionBox.w,
       h: selectionBox.h,
-      text: recognizedText,
+      text: foundText,
       weight: $('customWeight').value
-    });
+    };
+
+    customEdits.push(newEdit);
+    activeEditIndex = customEdits.length - 1;
+
+    // Выводим распознанный текст в поле ввода
+    $('customText').value = foundText;
+    $('customWeight').value = newEdit.weight;
+    $('cwval').textContent = newEdit.weight;
 
     selectionBox = null;
     isPickerActive = false;
     $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выделить текст рамкой';
-    $('status').textContent = `Текст распознан: "${recognizedText}". Теперь вы можете изменить его слева.`;
+    $('status').textContent = `Текст успешно распознан и выбран для изменения!`;
     drawPreview();
   }
 }
@@ -297,8 +303,8 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Отрисовка всех замен с фиксированным нормальным размером шрифта под чек
-  customEdits.forEach(item => {
+  // Отрисовка всех замен
+  customEdits.forEach((item, idx) => {
     x.fillStyle = '#fff';
     x.fillRect(item.x - 2, item.y - item.h - 2, item.w + 4, item.h + 6);
 
@@ -307,9 +313,16 @@ function compose(){
     x.font = `${item.weight || 400} ${fontSize}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
+
+    // Выделяем рамкой активный элемент, который сейчас редактируется
+    if(idx === activeEditIndex) {
+      x.strokeStyle = '#ffb06d';
+      x.lineWidth = 1.5;
+      x.strokeRect(item.x - 2, item.y - item.h - 2, item.w + 4, item.h + 6);
+    }
   });
 
-  // Рамка выделения в реальном времени
+  // Рамка текущего выделения пальцем в реальном времени
   if(selectionBox) {
     x.strokeStyle = '#6d8cff';
     x.lineWidth = 2;
