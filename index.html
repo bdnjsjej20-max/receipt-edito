@@ -24,20 +24,20 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <label class="field" for="time">Время перевода</label><input id="time" type="time" value="16:14">
 
 <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-<h2>Выделение пальцем</h2>
+<h2>Выделение текста пальцем</h2>
 
-<button class="btn secondary" id="pickerToggle" style="margin-bottom:10px">🖌 Включить кисть выделения</button>
+<button class="btn secondary" id="pickerToggle" style="margin-bottom:10px">🖌 Выделить нужный текст</button>
 
-<label class="field" for="customText">Текст замены</label>
-<input id="customText" type="text" placeholder="Введите новый текст...">
+<label class="field" for="customText">Новый текст</label>
+<input id="customText" type="text" placeholder="Введите текст взамен выделенного...">
 
-<label class="field" for="customWeight">Жирность текста: <span id="cwval">400</span></label>
+<label class="field" for="customWeight">Жирность: <span id="cwval">400</span></label>
 <input id="customWeight" type="range" min="100" max="900" step="100" value="400">
 
 <button class="btn" id="refresh">Обновить превью</button>
 <button class="btn secondary" id="save">Скачать</button>
 
-<div class="note">Включи кисть, проведи пальцем прямо по тексту на чеке, чтобы выделить область рамкой, введи новый текст и нажми обновить.</div>
+<div class="note">Нажми кнопку кисти, обведи пальцем кусок текста на чеке — сайт сотрет его и поставит туда твой новый текст.</div>
 </section>
 
 <section class="panel">
@@ -74,8 +74,8 @@ function loadScript(urls) {
 let pdfDoc=null, baseCanvas=null, libsReady=false;
 let isDrawing = false;
 let startX = 0, startY = 0;
-let selectionBox = null; // {x, y, w, h} на холсте
-let customSelections = []; // Сохраненные выделения
+let selectionBox = null; 
+let customEdits = []; // Список всех замененных зон
 
 (async()=>{
   try {
@@ -105,15 +105,14 @@ let customSelections = []; // Сохраненные выделения
 $('date').addEventListener('change', drawPreview);
 $('time').addEventListener('change', drawPreview);$('customWeight').addEventListener('input', () => {
   $('cwval').textContent =$('customWeight').value;
-  if(customSelections.length > 0) {
-    customSelections[customSelections.length - 1].weight = $('customWeight').value;
+  if(customEdits.length > 0) {
+    customEdits[customEdits.length - 1].weight = $('customWeight').value;
     drawPreview();
   }
 });
-
 $('customText').addEventListener('input', () => {
-  if(customSelections.length > 0) {
-    customSelections[customSelections.length - 1].text = $('customText').value;
+  if(customEdits.length > 0) {
+    customEdits[customEdits.length - 1].text = $('customText').value;
     drawPreview();
   }
 });
@@ -126,11 +125,11 @@ $('pickerToggle').addEventListener('click', () => {
   }
   isPickerActive = !isPickerActive;
   if(isPickerActive) {
-    $('pickerToggle').classList.add('picker-active');$('pickerToggle').textContent = '🎯 Кисть активна: обведи текст пальцем';
-    $('status').textContent = 'Проведите пальцем по тексту на чеке.';
+    $('pickerToggle').classList.add('picker-active');$('pickerToggle').textContent = '🎯 Режим выделения активен';
+    $('status').textContent = 'Обведите пальцем нужный текст на чеке.';
   } else {
-    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Включить кисть выделения';
-    $('status').textContent = 'Кисть отключена.';
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать нужный текст';
+    $('status').textContent = 'Выделение завершено.';
   }
 });
 
@@ -160,9 +159,9 @@ $('file').addEventListener('change', async e => {
     
     $('empty').hidden = true;
     $('canvasbox').hidden = false;
-    customSelections = [];
+    customEdits = [];
     selectionBox = null;
-    $('status').textContent = 'Файл загружен. Включите кисть и выделите текст пальцем.';
+    $('status').textContent = 'Файл загружен. Включите кнопку выделения.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + err.message;
@@ -170,10 +169,9 @@ $('file').addEventListener('change', async e => {
   }
 });
 
-// Логика рисования пальцем/мышкой прямо на холсте
 const canvasEl = $('page');
 
-function getCanvasCoords(e) {
+function getCoords(e) {
   const rect = canvasEl.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -183,55 +181,54 @@ function getCanvasCoords(e) {
   };
 }
 
-canvasEl.addEventListener('mousedown', startDraw);
-canvasEl.addEventListener('touchstart', startDraw, {passive: false});
+canvasEl.addEventListener('mousedown', startRect);
+canvasEl.addEventListener('touchstart', startRect, {passive: false});
 
-canvasEl.addEventListener('mousemove', moveDraw);
-canvasEl.addEventListener('touchmove', moveDraw, {passive: false});
+canvasEl.addEventListener('mousemove', moveRect);
+canvasEl.addEventListener('touchmove', moveRect, {passive: false});
 
-canvasEl.addEventListener('mouseup', endDraw);
-canvasEl.addEventListener('touchend', endDraw);
+canvasEl.addEventListener('mouseup', endRect);
+canvasEl.addEventListener('touchend', endRect);
 
-function startDraw(e) {
+function startRect(e) {
   if(!isPickerActive) return;
-  const coords = getCanvasCoords(e);
+  const c = getCoords(e);
   isDrawing = true;
-  startX = coords.x;
-  startY = coords.y;
+  startX = c.x;
+  startY = c.y;
   selectionBox = { x: startX, y: startY, w: 0, h: 0 };
   e.preventDefault();
 }
 
-function moveDraw(e) {
+function moveRect(e) {
   if(!isDrawing || !isPickerActive) return;
-  const coords = getCanvasCoords(e);
+  const c = getCoords(e);
   selectionBox = {
-    x: Math.min(startX, coords.x),
-    y: Math.min(startY, coords.y),
-    w: Math.abs(coords.x - startX),
-    h: Math.abs(coords.y - startY)
+    x: Math.min(startX, c.x),
+    y: Math.min(startY, c.y),
+    w: Math.abs(c.x - startX),
+    h: Math.abs(c.y - startY)
   };
   drawPreview();
   e.preventDefault();
 }
 
-function endDraw(e) {
+function endRect(e) {
   if(!isDrawing || !isPickerActive) return;
   isDrawing = false;
-  if(selectionBox && selectionBox.w > 5 && selectionBox.h > 5) {
-    // Сохраняем выделение
-    customSelections.push({
+  if(selectionBox && selectionBox.w > 4 && selectionBox.h > 4) {
+    customEdits.push({
       x: selectionBox.x,
-      y: selectionBox.y + selectionBox.h - 4, // Базовая линия текста
+      y: selectionBox.y + selectionBox.h - 2,
       w: selectionBox.w,
       h: selectionBox.h,
-      text: $('customText').value || 'Новый текст',
+      text: $('customText').value || 'Текст',
       weight: $('customWeight').value
     });
     selectionBox = null;
     isPickerActive = false;
-    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Включить кисть выделения';
-    $('status').textContent = 'Область выделена и заменена!';
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать нужный текст';
+    $('status').textContent = 'Текст успешно выделен и заменен!';
     drawPreview();
   }
 }
@@ -264,22 +261,22 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Отрисовка всех областей, выделенных пальцем
-  customSelections.forEach(item => {
+  // Отрисовка замен по выделенным областям
+  customEdits.forEach(item => {
     x.fillStyle = '#fff';
-    x.fillRect(item.x - 2, item.y - item.h, item.w + 4, item.h + 4); // Затираем белым
+    x.fillRect(item.x - 2, item.y - item.h, item.w + 4, item.h + 4);
 
     x.fillStyle = '#111';
-    x.font = `${item.weight || 400} ${Math.max(10, item.h * 0.8)}px Tahoma, Arial, sans-serif`;
+    x.font = `${item.weight || 400} ${Math.max(10, item.h * 0.85)}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
   });
 
-  // Рисуем текущую рамку выделения в реальном времени
+  // Рамка текущего выделения пальцем
   if(selectionBox) {
     x.strokeStyle = '#6d8cff';
     x.lineWidth = 2;
-    x.fillStyle = 'rgba(109, 140, 255, 0.2)';
+    x.fillStyle = 'rgba(109, 140, 255, 0.25)';
     x.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
     x.strokeRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
   }
