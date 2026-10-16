@@ -23,7 +23,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
 <button class="btn" id="refresh">Обновить</button>
 <button class="btn secondary" id="save">Скачать</button>
-<div class="note">Тапни пальцем в любое место на превью чека, чтобы поставить туда текст, изменить его и настроить жирность.</div>
+<div class="note">Нажми строго по любому тексту на чеке: если текст распознан, откроется панель редактирования текста и его точечной жирности.</div>
 </section>
 <section class="panel">
   <h2>Предпросмотр</h2>
@@ -32,12 +32,12 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
     <div class="canvasbox" id="canvasbox" hidden><canvas id="page"></canvas></div>
     
     <div class="editor-popup" id="editorPopup">
-      <div class="small" id="popupInfo" style="margin-bottom:6px">Точка изменения текста</div>
-      <label class="field" for="customReplaceText" style="margin:4px 0 2px">Текст для вставки:</label>
-      <input type="text" id="customReplaceText" placeholder="Введите текст...">
-      <label class="field" for="customWeight" style="margin:8px 0 2px">Жирность: <span id="cwval">400</span></label>
+      <div class="small" id="popupInfo" style="margin-bottom:6px">Найден текст</div>
+      <label class="field" for="customReplaceText" style="margin:4px 0 2px">Новый текст:</label>
+      <input type="text" id="customReplaceText" placeholder="Введите новый текст...">
+      <label class="field" for="customWeight" style="margin:8px 0 2px">Жирность этого текста: <span id="cwval">400</span></label>
       <input id="customWeight" type="range" min="100" max="900" step="100" value="400">
-      <button class="btn" id="applyCustomText" style="margin-top:10px">Применить на холсте</button>
+      <button class="btn" id="applyCustomText" style="margin-top:10px">Применить изменения</button>
     </div>
   </div>
   <div class="small" id="status" style="margin-top:10px">Инициализация...</div>
@@ -66,8 +66,9 @@ function loadScript(urls) {
 }
 
 let pdfDoc=null, baseCanvas=null, pageW=0, pageH=0, libsReady=false;
+let textItems = []; // Массив распознанных текстовых блоков из PDF
 let customReplacements = [];
-let pendingPoint = null;
+let activeSelection = null; // Текущий выбранный текстовый элемент
 
 (async()=>{
   try {
@@ -111,14 +112,28 @@ $('file').addEventListener('change', async e => {
       throw new Error('Выберите файл с расширением .pdf');
     }
     
-    $('status').textContent = 'Чтение PDF файла...';
+    $('status').textContent = 'Чтение PDF и распознавание текста...';
     const bytes = await f.arrayBuffer();
     
     pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
     const page = await pdfDoc.getPage(1);
+    const textContent = await page.getTextContent();
     const vp = page.getViewport({ scale: 1.5 });
     pageW = vp.width;
     pageH = vp.height;
+
+    // Извлекаем точные координаты каждого текстового блока из PDF
+    textItems = textContent.items.map(item => {
+      const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
+      return {
+        str: item.str,
+        x: tx[4],
+        y: tx[5],
+        width: item.width * vp.scale,
+        height: (item.height || 10) * vp.scale,
+        fontPx: Math.abs(tx[3])
+      };
+    });
     
     baseCanvas = document.createElement('canvas');
     baseCanvas.width = Math.ceil(vp.width);
@@ -132,7 +147,8 @@ $('file').addEventListener('change', async e => {
     $('empty').hidden = true;
     $('canvasbox').hidden = false;
     customReplacements = [];
-    $('editorPopup').style.display = 'none';$('status').textContent = 'Файл загружен. Тапните по чеку в месте изменения текста.';
+    activeSelection = null;
+    $('editorPopup').style.display = 'none';$('status').textContent = 'Файл загружен. Нажмите на любой текст на чеке.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + (err.message || 'не удалось открыть файл');
@@ -170,22 +186,22 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Кастомные пользовательские вставки
+  // Кастомные правки конкретных текстовых блоков
   customReplacements.forEach(item => {
     x.fillStyle = '#fff';
-    x.fillRect(item.x - 2, item.y - 14, 140, 18);
+    x.fillRect(item.x - 4, item.y - item.height - 4, item.width + 16, item.height + 10);
     
     x.fillStyle = '#111';
-    x.font = `${item.weight || 400} ${Math.max(10, item.fontPx || 12 * factor)}px Tahoma, Arial, sans-serif`;
+    x.font = `${item.weight || 400} ${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
   });
 
-  // Метка выбранной точки на превью
-  if(pendingPoint) {
+  // Подсветка выбранного текстового блока синей рамкой
+  if(activeSelection) {
     x.strokeStyle = '#6d8cff';
-    x.lineWidth = 3;
-    x.strokeRect(pendingPoint.x - 4, pendingPoint.y - 14, 144, 20);
+    x.lineWidth = 2.5;
+    x.strokeRect(activeSelection.x - 4, activeSelection.y - activeSelection.height - 4, activeSelection.width + 16, activeSelection.height + 10);
   }
 
   return c;
@@ -200,63 +216,84 @@ function drawPreview(){
   out.getContext('2d').drawImage(c, 0, 0);
 }
 
-function handleTouch(clientX, clientY) {
-  if(!baseCanvas) return;
+// Проверка клика/тапа строго по распознанному тексту
+function handleSelection(clientX, clientY) {
+  if(!baseCanvas || textItems.length === 0) return;
   const canvasEl = $('page');
   const rect = canvasEl.getBoundingClientRect();
   
-  const x = (clientX - rect.left) / rect.width * canvasEl.width;
-  const y = (clientY - rect.top) / rect.height * canvasEl.height;
+  const scaleX = canvasEl.width / rect.width;
+  const scaleY = canvasEl.height / rect.height;
+  const clickX = (clientX - rect.left) * scaleX;
+  const clickY = (clientY - rect.top) * scaleY;
 
-  pendingPoint = { x, y };
-  
-  const existing = customReplacements.find(r => Math.abs(r.x - x) < 30 && Math.abs(r.y - y) < 20);
-  $('customReplaceText').value = existing ? existing.text : '';
-  const currentW = existing ? existing.weight : 400;
-  $('customWeight').value = currentW;
-  $('cwval').textContent = currentW;
+  // Ищем элемент из массива текста PDF, в который попал палец/курсор
+  const found = textItems.find(item => {
+    return clickX >= item.x - 15 && 
+           clickX <= item.x + item.width + 25 && 
+           clickY >= item.y - item.height - 10 && 
+           clickY <= item.y + 12;
+  });
 
-  $('editorPopup').style.display = 'block';
-  drawPreview();
-  $('status').textContent = 'Точка выбрана. Введите текст и нажмите применить.';
+  if(found) {
+    activeSelection = found;
+    $('popupInfo').textContent = `Найден текст: "${found.str}"`;
+    
+    // Проверяем, менялся ли этот блок ранее
+    const existing = customReplacements.find(r => Math.abs(r.x - found.x) < 5 && Math.abs(r.y - found.y) < 5);
+    $('customReplaceText').value = existing ? existing.text : found.str;
+    
+    const currentW = existing ? existing.weight : 400;
+    $('customWeight').value = currentW;
+    $('cwval').textContent = currentW;
+
+    $('editorPopup').style.display = 'block';
+    drawPreview();
+    $('status').textContent = `Выбран текст: "${found.str}"`;
+  } else {
+    // Если кликнули мимо текста — ничего не происходит (как вы и просили)
+    activeSelection = null;
+    $('editorPopup').style.display = 'none';
+    drawPreview();
+  }
 }
 
 $('page').addEventListener('click', e => {
-  handleTouch(e.clientX, e.clientY);
+  handleSelection(e.clientX, e.clientY);
 });
 
 $('page').addEventListener('touchend', e => {
   if(e.changedTouches && e.changedTouches.length > 0) {
     const touch = e.changedTouches[0];
-    handleTouch(touch.clientX, touch.clientY);
+    handleSelection(touch.clientX, touch.clientY);
     e.preventDefault();
   }
 }, {passive: false});
 
 $('applyCustomText').addEventListener('click', () => {
-  if(!pendingPoint) return;
+  if(!activeSelection) return;
   const newText = $('customReplaceText').value;
   const newWeight = parseInt($('customWeight').value) || 400;
   
-  const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - pendingPoint.x) < 30 && Math.abs(r.y - pendingPoint.y) < 20);
-  
+  const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - activeSelection.x) < 5 && Math.abs(r.y - activeSelection.y) < 5);
   if(existingIndex >= 0) {
     customReplacements[existingIndex].text = newText;
     customReplacements[existingIndex].weight = newWeight;
   } else {
     customReplacements.push({
-      x: pendingPoint.x,
-      y: pendingPoint.y,
+      x: activeSelection.x,
+      y: activeSelection.y,
+      width: activeSelection.width,
+      height: activeSelection.height,
+      fontPx: activeSelection.fontPx,
       text: newText,
-      weight: newWeight,
-      fontPx: 12 * (baseCanvas.width / 595.0)
+      weight: newWeight
     });
   }
-  
   $('editorPopup').style.display = 'none';
-  pendingPoint = null;
+  activeSelection = null;
   drawPreview();
-  $('status').textContent = 'Текст успешно добавлен/изменен!';
+  $('status').textContent = 'Текст успешно изменен с учетом выбранной жирности!';
 });
 
 $('refresh').addEventListener('click', drawPreview);
