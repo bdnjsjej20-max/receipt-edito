@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Редактор чеков</title>
+<title>Полный редактор чеков</title>
 <style>
 :root{color-scheme:dark;--bg:#090b10;--panel:#121722;--line:#283244;--text:#eef3ff;--muted:#9aa8bd;--accent:#6d8cff}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172033,#090b10 55%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:13px 0 6px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:11px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:420px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008;cursor:crosshair}.canvasbox canvas{display:block;max-width:100%;height:auto;touch-action:manipulation}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
-.editor-popup{margin-top:12px;padding:12px;background:#172033;border:1px solid var(--line);border-radius:10px;display:none;width:100%}
+main{max-width:1200px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7894ff,#6d46d9);display:grid;place-items:center;font-weight:900}.sub{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.panel{background:#111722d9;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0005}.panel h2{font-size:16px;margin:0 0 14px}.field{display:block;margin:10px 0 4px;color:#c7d2e5;font-size:13px}input[type=file],input[type=text],input[type=date],input[type=time],select{width:100%;padding:9px;border:1px solid #344157;border-radius:10px;background:#0b1019;color:var(--text);font:inherit}input[type=range]{width:100%}.btn{width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:750;color:white;background:linear-gradient(135deg,#6d8cff,#7654dd);margin-top:12px;cursor:pointer}.btn.secondary{background:#252f40;border:1px solid #3b4960}.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:12px}.warning{padding:11px 12px;border:1px solid #775b26;background:#392c14;color:#ffe4a5;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:14px}.preview-wrap{min-height:500px;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:12px;background:#090d14;border-radius:12px}.canvasbox{position:relative;max-width:100%;box-shadow:0 8px 32px #0008}.canvasbox canvas{display:block;max-width:100%;height:auto}.empty{padding:90px 20px;text-align:center;color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+.box-row{display:flex;gap:6px}.box-row>div{flex:1}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px}legend{color:var(--accent);font-weight:bold;font-size:13px}
 @media(max-width:760px){main{padding:13px}.layout{grid-template-columns:1fr}.preview-wrap{min-height:250px}.top{align-items:flex-start}}
 </style>
 </head>
@@ -17,28 +18,102 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <div class="warning">By shizov</div>
 <div class="layout">
 <section class="panel">
-<h2>Настройки</h2>
+<h2>Настройки и файл</h2>
 <label class="field" for="file">Исходный PDF</label><input id="file" type="file" accept="application/pdf,.pdf">
-<label class="field" for="date">Новая дата</label><input id="date" type="date" value="2026-10-16">
-<label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
-<button class="btn" id="refresh">Обновить</button>
-<button class="btn secondary" id="save">Скачать</button>
-<div class="note">Нажми строго по любому тексту на чеке: если текст распознан, откроется панель редактирования текста и его точечной жирности.</div>
+
+<fieldset>
+  <legend>Дата и Время</legend>
+  <div class="box-row">
+    <div><label class="field" for="date">Дата</label><input id="date" type="date" value="2026-10-16"></div>
+    <div><label class="field" for="time">Время</label><input id="time" type="time" value="16:14"></div>
+  </div>
+  <label class="field" for="dtX">X: <input id="dtX" type="number" value="305" style="width:70px;display:inline-block;padding:4px"> Y: <input id="dtY" type="number" value="165" style="width:70px;display:inline-block;padding:4px"></label>
+</fieldset>
+
+<fieldset>
+  <legend>Счет списания</legend>
+  <input id="f_account" type="text" value="40817810905891906300">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="accX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="accY" type="number" value="210"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Сумма платежа</legend>
+  <input id="f_sum" type="text" value="30 RUR">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="sumX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="sumY" type="number" value="260"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Назначение платежа</legend>
+  <input id="f_purpose" type="text" value="Маршрут № 14 Билет на 1 поездку">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="purX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="purY" type="number" value="350"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Референс</legend>
+  <input id="f_ref" type="text" value="B6024121213007010000120011680501">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="refX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="refY" type="number" value="430"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Получатель</legend>
+  <input id="f_rec" type="text" value="Автобус">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="recX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="recY" type="number" value="510"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Наименование юр. лица</legend>
+  <input id="f_org" type="text" value='ООО "ТЕХНОПРОМ"'>
+  <div class="box-row">
+    <div><label class="field">X</label><input id="orgX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="orgY" type="number" value="560"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>ИНН Получателя</legend>
+  <input id="f_inn" type="text" value="6685004357">
+  <div class="box-row">
+    <div><label class="field">X</label><input id="innX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="innY" type="number" value="610"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Банк получателя</legend>
+  <input id="f_bank" type="text" value='АО "Ашот-Бонк"'>
+  <div class="box-row">
+    <div><label class="field">X</label><input id="bankX" type="number" value="40"></div>
+    <div><label class="field">Y</label><input id="bankY" type="number" value="660"></div>
+  </div>
+</fieldset>
+
+<label class="field" for="globalWeight">Жирность всех полей: <span id="gwval">400</span></label>
+<input id="globalWeight" type="range" min="100" max="900" step="100" value="400">
+
+<button class="btn" id="refresh" style="margin-top:14px">Обновить превью</button>
+<button class="btn secondary" id="save">Скачать готовый PDF</button>
 </section>
+
 <section class="panel">
   <h2>Предпросмотр</h2>
   <div class="preview-wrap" id="wrap">
     <div class="empty" id="empty">Загрузи PDF, чтобы увидеть страницу здесь.</div>
     <div class="canvasbox" id="canvasbox" hidden><canvas id="page"></canvas></div>
-    
-    <div class="editor-popup" id="editorPopup">
-      <div class="small" id="popupInfo" style="margin-bottom:6px">Найден текст</div>
-      <label class="field" for="customReplaceText" style="margin:4px 0 2px">Новый текст:</label>
-      <input type="text" id="customReplaceText" placeholder="Введите новый текст...">
-      <label class="field" for="customWeight" style="margin:8px 0 2px">Жирность этого текста: <span id="cwval">400</span></label>
-      <input id="customWeight" type="range" min="100" max="900" step="100" value="400">
-      <button class="btn" id="applyCustomText" style="margin-top:10px">Применить изменения</button>
-    </div>
   </div>
   <div class="small" id="status" style="margin-top:10px">Инициализация...</div>
 </section>
@@ -51,7 +126,7 @@ function loadScript(urls) {
     let i = 0;
     function tryNext() {
       if (i >= urls.length) {
-        reject(new Error('Не удалось загрузить библиотеки. Проверьте интернет.'));
+        reject(new Error('Не удалось загрузить библиотеки.'));
         return;
       }
       const s = document.createElement('script');
@@ -65,10 +140,7 @@ function loadScript(urls) {
   });
 }
 
-let pdfDoc=null, baseCanvas=null, pageW=0, pageH=0, libsReady=false;
-let textItems = []; // Массив распознанных текстовых блоков из PDF
-let customReplacements = [];
-let activeSelection = null; // Текущий выбранный текстовый элемент
+let pdfDoc=null, baseCanvas=null, libsReady=false;
 
 (async()=>{
   try {
@@ -90,50 +162,29 @@ let activeSelection = null; // Текущий выбранный текстов�
     libsReady = true;
     $('status').textContent='Готово. Выберите PDF-файл.';
   } catch(err) {
-    $('status').textContent = 'Ошибка сети: не удалось загрузить скрипты с CDN.';
+    $('status').textContent = 'Ошибка сети.';
     console.error(err);
   }
 })();
 
-$('date').addEventListener('change', drawPreview);
-$('time').addEventListener('change', drawPreview);$('customWeight').addEventListener('input', () => {
-  $('cwval').textContent =$('customWeight').value;
-});
+// Автообновление при изменении любых полей
+const inputs = document.querySelectorAll('input');
+inputs.forEach(inp => inp.addEventListener('input', drawPreview));
 
 $('file').addEventListener('change', async e => {
   const f = e.target.files[0];
   if(!f) return;
   try {
     if(!libsReady) {
-      alert('Библиотеки еще загружаются, подождите пару секунд!');
+      alert('Библиотеки еще загружаются!');
       return;
     }
-    if(!f.name.toLowerCase().endsWith('.pdf') && f.type !== 'application/pdf') {
-      throw new Error('Выберите файл с расширением .pdf');
-    }
-    
-    $('status').textContent = 'Чтение PDF и распознавание текста...';
+    $('status').textContent = 'Чтение PDF...';
     const bytes = await f.arrayBuffer();
     
     pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
     const page = await pdfDoc.getPage(1);
-    const textContent = await page.getTextContent();
     const vp = page.getViewport({ scale: 1.5 });
-    pageW = vp.width;
-    pageH = vp.height;
-
-    // Извлекаем точные координаты каждого текстового блока из PDF
-    textItems = textContent.items.map(item => {
-      const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
-      return {
-        str: item.str,
-        x: tx[4],
-        y: tx[5],
-        width: item.width * vp.scale,
-        height: (item.height || 10) * vp.scale,
-        fontPx: Math.abs(tx[3])
-      };
-    });
     
     baseCanvas = document.createElement('canvas');
     baseCanvas.width = Math.ceil(vp.width);
@@ -146,22 +197,22 @@ $('file').addEventListener('change', async e => {
     
     $('empty').hidden = true;
     $('canvasbox').hidden = false;
-    customReplacements = [];
-    activeSelection = null;
-    $('editorPopup').style.display = 'none';$('status').textContent = 'Файл загружен. Нажмите на любой текст на чеке.';
+    $('status').textContent = 'Файл загружен. Настройте поля слева.';
     drawPreview();
   } catch(err) {
-    $('status').textContent = 'Ошибка: ' + (err.message || 'не удалось открыть файл');
-    alert('Ошибка при открытии PDF: ' + err.message);
+    $('status').textContent = 'Ошибка: ' + err.message;
     console.error(err);
   }
 });
 
-function newDateText(){
-  let d = $('date').value;
-  if(!d) return '';
-  let [y, m, day] = d.split('-');
-  return `${day}.${m}.${y}  ${$('time').value||'00:00'}`;
+function drawField(ctx, text, x, y, w, h, weight, fontSize=12) {
+  if(!text) return;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 2, y - h + 2, w, h + 4);
+  ctx.fillStyle = '#111';
+  ctx.font = `${weight} ${fontSize}px Tahoma, Arial, sans-serif`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y);
 }
 
 function compose(){
@@ -172,37 +223,40 @@ function compose(){
   const x = c.getContext('2d');
   x.drawImage(baseCanvas, 0, 0);
 
-  const factor = c.width / 595.0;
-  
-  // Авто-дата
-  const px = Math.min(c.width - 180 * factor, Math.max(20 * factor, 304.75 * factor));
-  const py = Math.min(c.height - 12 * factor, Math.max(30 * factor, 177.6 * factor));
-  
-  x.fillStyle = '#fff';
-  x.fillRect(px - 2 * factor, py - 15 * factor, 165 * factor, 19 * factor);
-  
-  x.fillStyle = '#111';
-  x.font = `400 ${12 * factor}px Tahoma, Arial, sans-serif`;
-  x.textBaseline = 'alphabetic';
-  x.fillText(newDateText(), px, py);
+  const weight = $('globalWeight').value;
+  $('gwval').textContent = weight;
 
-  // Кастомные правки конкретных текстовых блоков
-  customReplacements.forEach(item => {
-    x.fillStyle = '#fff';
-    x.fillRect(item.x - 4, item.y - item.height - 4, item.width + 16, item.height + 10);
-    
-    x.fillStyle = '#111';
-    x.font = `${item.weight || 400} ${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
-    x.textBaseline = 'alphabetic';
-    x.fillText(item.text, item.x, item.y);
-  });
-
-  // Подсветка выбранного текстового блока синей рамкой
-  if(activeSelection) {
-    x.strokeStyle = '#6d8cff';
-    x.lineWidth = 2.5;
-    x.strokeRect(activeSelection.x - 4, activeSelection.y - activeSelection.height - 4, activeSelection.width + 16, activeSelection.height + 10);
+  // 1. Дата и время
+  let d = $('date').value;
+  if(d) {
+    let [yr, m, day] = d.split('-');
+    let dateStr = `${day}.${m}.${yr}  ${$('time').value||'00:00'}`;
+    drawField(x, dateStr, parseFloat($('dtX').value), parseFloat($('dtY').value), 180, 18, weight, 12);
   }
+
+  // 2. Счет списания
+  drawField(x, $('f_account').value, parseFloat($('accX').value), parseFloat($('accY').value), 250, 18, weight, 12);
+
+  // 3. Сумма платежа
+  drawField(x, $('f_sum').value, parseFloat($('sumX').value), parseFloat($('sumY').value), 150, 18, weight, 12);
+
+  // 4. Назначение платежа
+  drawField(x, $('f_purpose').value, parseFloat($('purX').value), parseFloat($('purY').value), 350, 18, weight, 12);
+
+  // 5. Референс
+  drawField(x, $('f_ref').value, parseFloat($('refX').value), parseFloat($('refY').value), 350, 18, weight, 12);
+
+  // 6. Получатель
+  drawField(x, $('f_rec').value, parseFloat($('recX').value), parseFloat($('recY').value), 250, 18, weight, 12);
+
+  // 7. Наименование юр. лица
+  drawField(x, $('f_org').value, parseFloat($('orgX').value), parseFloat($('orgY').value), 300, 18, weight, 12);
+
+  // 8. ИНН получателя
+  drawField(x, $('f_inn').value, parseFloat($('innX').value), parseFloat($('innY').value), 150, 18, weight, 12);
+
+  // 9. Банк получателя
+  drawField(x, $('f_bank').value, parseFloat($('bankX').value), parseFloat($('bankY').value), 250, 18, weight, 12);
 
   return c;
 }
@@ -216,95 +270,11 @@ function drawPreview(){
   out.getContext('2d').drawImage(c, 0, 0);
 }
 
-// Проверка клика/тапа строго по распознанному тексту
-function handleSelection(clientX, clientY) {
-  if(!baseCanvas || textItems.length === 0) return;
-  const canvasEl = $('page');
-  const rect = canvasEl.getBoundingClientRect();
-  
-  const scaleX = canvasEl.width / rect.width;
-  const scaleY = canvasEl.height / rect.height;
-  const clickX = (clientX - rect.left) * scaleX;
-  const clickY = (clientY - rect.top) * scaleY;
-
-  // Ищем элемент из массива текста PDF, в который попал палец/курсор
-  const found = textItems.find(item => {
-    return clickX >= item.x - 15 && 
-           clickX <= item.x + item.width + 25 && 
-           clickY >= item.y - item.height - 10 && 
-           clickY <= item.y + 12;
-  });
-
-  if(found) {
-    activeSelection = found;
-    $('popupInfo').textContent = `Найден текст: "${found.str}"`;
-    
-    // Проверяем, менялся ли этот блок ранее
-    const existing = customReplacements.find(r => Math.abs(r.x - found.x) < 5 && Math.abs(r.y - found.y) < 5);
-    $('customReplaceText').value = existing ? existing.text : found.str;
-    
-    const currentW = existing ? existing.weight : 400;
-    $('customWeight').value = currentW;
-    $('cwval').textContent = currentW;
-
-    $('editorPopup').style.display = 'block';
-    drawPreview();
-    $('status').textContent = `Выбран текст: "${found.str}"`;
-  } else {
-    // Если кликнули мимо текста — ничего не происходит (как вы и просили)
-    activeSelection = null;
-    $('editorPopup').style.display = 'none';
-    drawPreview();
-  }
-}
-
-$('page').addEventListener('click', e => {
-  handleSelection(e.clientX, e.clientY);
-});
-
-$('page').addEventListener('touchend', e => {
-  if(e.changedTouches && e.changedTouches.length > 0) {
-    const touch = e.changedTouches[0];
-    handleSelection(touch.clientX, touch.clientY);
-    e.preventDefault();
-  }
-}, {passive: false});
-
-$('applyCustomText').addEventListener('click', () => {
-  if(!activeSelection) return;
-  const newText = $('customReplaceText').value;
-  const newWeight = parseInt($('customWeight').value) || 400;
-  
-  const existingIndex = customReplacements.findIndex(r => Math.abs(r.x - activeSelection.x) < 5 && Math.abs(r.y - activeSelection.y) < 5);
-  if(existingIndex >= 0) {
-    customReplacements[existingIndex].text = newText;
-    customReplacements[existingIndex].weight = newWeight;
-  } else {
-    customReplacements.push({
-      x: activeSelection.x,
-      y: activeSelection.y,
-      width: activeSelection.width,
-      height: activeSelection.height,
-      fontPx: activeSelection.fontPx,
-      text: newText,
-      weight: newWeight
-    });
-  }
-  $('editorPopup').style.display = 'none';
-  activeSelection = null;
-  drawPreview();
-  $('status').textContent = 'Текст успешно изменен с учетом выбранной жирности!';
-});
-
 $('refresh').addEventListener('click', drawPreview);
 
 $('save').addEventListener('click', () => {
   if(!baseCanvas){
     alert('Сначала загрузите PDF.');
-    return;
-  }
-  if(!window.jspdf){
-    alert('Модуль экспорта не загружен.');
     return;
   }
   try {
@@ -322,7 +292,6 @@ $('save').addEventListener('click', () => {
     $('status').textContent = 'Файл успешно скачан!';
   } catch(err) {
     alert('Ошибка при скачивании: ' + err.message);
-    console.error(err);
   }
 });
 </script>
