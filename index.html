@@ -21,9 +21,10 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <label class="field" for="file">Исходный PDF</label><input id="file" type="file" accept="application/pdf,.pdf">
 <label class="field" for="date">Новая дата</label><input id="date" type="date" value="2026-10-16">
 <label class="field" for="time">Новое время</label><input id="time" type="time" value="16:14">
+<label class="field" for="fw">Жирность текста: <span id="fwval">400</span></label><input id="fw" type="range" min="100" max="900" step="100" value="400">
 <button class="btn" id="refresh">Обновить</button>
 <button class="btn secondary" id="save">Скачать</button>
-<div class="note">Дата размещается в области поля «Дата отправки перевода». Кликните по любому тексту на превью для его изменения.</div>
+<div class="note">Используйте ползунок жирности для настройки насыщенности измененного текста под стиль чека. Кликните по тексту для точечной правки.</div>
 </section>
 <section class="panel">
   <h2>Предпросмотр</h2>
@@ -92,7 +93,11 @@ let activeSelection = null;
   }
 })();
 
-$('date').addEventListener('change', drawPreview);$('time').addEventListener('change', drawPreview);
+$('date').addEventListener('change', drawPreview);
+$('time').addEventListener('change', drawPreview);$('fw').addEventListener('input', () => {
+  $('fwval').textContent =$('fw').value;
+  drawPreview();
+});
 
 $('file').addEventListener('change', async e => {
   const f = e.target.files[0];
@@ -102,7 +107,6 @@ $('file').addEventListener('change', async e => {
       alert('Библиотеки еще загружаются, подождите пару секунд!');
       return;
     }
-    // Проверка на PDF по расширению или MIME-типу для мобильных устройств
     if(!f.name.toLowerCase().endsWith('.pdf') && f.type !== 'application/pdf') {
       throw new Error('Выберите файл с расширением .pdf');
     }
@@ -113,7 +117,7 @@ $('file').addEventListener('change', async e => {
     pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
     const page = await pdfDoc.getPage(1);
     const textContent = await page.getTextContent();
-    const vp = page.getViewport({ scale: 1.5 }); // Уменьшено до 1.5 для стабильности на телефонах с меньшим объемом памяти
+    const vp = page.getViewport({ scale: 1.5 });
     pageW = vp.width;
     pageH = vp.height;
 
@@ -166,6 +170,8 @@ function compose(){
   x.drawImage(baseCanvas, 0, 0);
 
   const factor = c.width / 595.0;
+  const weight = $('fw').value; // Значение ползунка жирности (100 - 900)
+  
   const px = Math.min(c.width - 180 * factor, Math.max(20 * factor, 304.75 * factor));
   const py = Math.min(c.height - 12 * factor, Math.max(30 * factor, 177.6 * factor));
   
@@ -173,7 +179,7 @@ function compose(){
   x.fillRect(px - 2 * factor, py - 15 * factor, 165 * factor, 19 * factor);
   
   x.fillStyle = '#111';
-  x.font = `${12 * factor}px Tahoma, Arial, sans-serif`;
+  x.font = `${weight} ${12 * factor}px Tahoma, Arial, sans-serif`;
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
@@ -182,7 +188,7 @@ function compose(){
     x.fillRect(item.x - 4, item.y - item.height - 2, item.width + 12, item.height + 8);
     
     x.fillStyle = '#111';
-    x.font = `${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
+    x.font = `${weight} ${Math.max(10, item.fontPx || 12)}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
   });
