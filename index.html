@@ -29,7 +29,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <button class="btn secondary" id="pickerToggle" style="margin-bottom:10px">🖌 Выделить нужный текст</button>
 
 <label class="field" for="customText">Новый текст</label>
-<input id="customText" type="text" placeholder="Введите текст взамен выделенного...">
+<input id="customText" type="text" placeholder="Введите текст взамен...">
 
 <label class="field" for="customWeight">Жирность: <span id="cwval">400</span></label>
 <input id="customWeight" type="range" min="100" max="900" step="100" value="400">
@@ -37,7 +37,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <button class="btn" id="refresh">Обновить превью</button>
 <button class="btn secondary" id="save">Скачать</button>
 
-<div class="note">Нажми кнопку кисти, обведи пальцем кусок текста на чеке — сайт сотрет его и поставит туда твой новый текст.</div>
+<div class="note">1. Внеси текст в поле «Новый текст».<br>2. Включи кисть и аккуратно обведи пальцем только саму строчку с данными на чеке.<br>3. Старый затрется, новый встанет точно на его место.</div>
 </section>
 
 <section class="panel">
@@ -75,7 +75,7 @@ let pdfDoc=null, baseCanvas=null, libsReady=false;
 let isDrawing = false;
 let startX = 0, startY = 0;
 let selectionBox = null; 
-let customEdits = []; // Список всех замененных зон
+let customEdits = []; 
 
 (async()=>{
   try {
@@ -126,9 +126,9 @@ $('pickerToggle').addEventListener('click', () => {
   isPickerActive = !isPickerActive;
   if(isPickerActive) {
     $('pickerToggle').classList.add('picker-active');$('pickerToggle').textContent = '🎯 Режим выделения активен';
-    $('status').textContent = 'Обведите пальцем нужный текст на чеке.';
+    $('status').textContent = 'Обведите пальцем нужную строчку текста.';
   } else {
-    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать нужный текст';
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выделить нужный текст';
     $('status').textContent = 'Выделение завершено.';
   }
 });
@@ -161,7 +161,7 @@ $('file').addEventListener('change', async e => {
     $('canvasbox').hidden = false;
     customEdits = [];
     selectionBox = null;
-    $('status').textContent = 'Файл загружен. Включите кнопку выделения.';
+    $('status').textContent = 'Файл загружен. Введите текст и выделите область.';
     drawPreview();
   } catch(err) {
     $('status').textContent = 'Ошибка: ' + err.message;
@@ -217,18 +217,25 @@ function endRect(e) {
   if(!isDrawing || !isPickerActive) return;
   isDrawing = false;
   if(selectionBox && selectionBox.w > 4 && selectionBox.h > 4) {
+    const textToInsert = $('customText').value;
+    if(!textToInsert) {
+      alert('Сначала введите текст в поле «Новый текст» слева!');
+      selectionBox = null;
+      drawPreview();
+      return;
+    }
     customEdits.push({
       x: selectionBox.x,
-      y: selectionBox.y + selectionBox.h - 2,
+      y: selectionBox.y + selectionBox.h - 3,
       w: selectionBox.w,
       h: selectionBox.h,
-      text: $('customText').value || 'Текст',
+      text: textToInsert,
       weight: $('customWeight').value
     });
     selectionBox = null;
     isPickerActive = false;
-    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выбрать нужный текст';
-    $('status').textContent = 'Текст успешно выделен и заменен!';
+    $('pickerToggle').classList.remove('picker-active');$('pickerToggle').textContent = '🖌 Выделить нужный текст';
+    $('status').textContent = 'Текст успешно заменен!';
     drawPreview();
   }
 }
@@ -261,13 +268,15 @@ function compose(){
   x.textBaseline = 'alphabetic';
   x.fillText(newDateText(), px, py);
 
-  // Отрисовка замен по выделенным областям
+  // Отрисовка замен по выделенным областям (с фиксированным нормальным размером шрифта под чек)
   customEdits.forEach(item => {
     x.fillStyle = '#fff';
-    x.fillRect(item.x - 2, item.y - item.h, item.w + 4, item.h + 4);
+    x.fillRect(item.x - 2, item.y - item.h - 2, item.w + 4, item.h + 6);
 
     x.fillStyle = '#111';
-    x.font = `${item.weight || 400} ${Math.max(10, item.h * 0.85)}px Tahoma, Arial, sans-serif`;
+    // Фиксированный размер шрифта под масштаб чека (примерно 11-12 пикселей подfactor), чтобы текст не растягивался на всю рамку
+    const fontSize = Math.max(10, 12 * factor);
+    x.font = `${item.weight || 400} ${fontSize}px Tahoma, Arial, sans-serif`;
     x.textBaseline = 'alphabetic';
     x.fillText(item.text, item.x, item.y);
   });
