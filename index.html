@@ -12,15 +12,15 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 </style>
 </head>
 <body><main>
-<header class="top"><div class="logo">DE</div><div><strong>Demo Editor</strong><div class="sub">Редактор демонстрационных копий</div></div></header>
+<header class="top"><div class="logo">DE</div><div><strong>Demo Editor</strong><div class="sub">Jenga</div></div></header>
 <div class="warning">By shizov</div>
 <div class="layout">
 <section class="panel">
 <h2>Настройки</h2>
-<label class="field" for="file">Исходный PDF</label><input id="file" type="file" accept="application/pdf,.pdf">
+<label class="field" for="file">Исходный</label><input id="file" type="file" accept="application/pdf,.pdf">
 
-<label class="field" for="date">Дата перевода</label><input id="date" type="date" value="2026-10-16">
-<label class="field" for="time">Время перевода</label><input id="time" type="time" value="16:14">
+<label class="field" for="date">Дата</label><input id="date" type="date" value="2026-10-16">
+<label class="field" for="time">Время</label><input id="time" type="time" value="16:14">
 
 <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
 <h2>Распознавание и замена</h2>
@@ -42,7 +42,7 @@ main{max-width:1100px;margin:auto;padding:22px}.top{display:flex;gap:12px;align-
 <section class="panel">
   <h2>Предпросмотр</h2>
   <div class="preview-wrap" id="wrap">
-    <div class="empty" id="empty">Загрузи PDF, чтобы увидеть страницу здесь.</div>
+    <div class="empty" id="empty">Загрузи файл, чтобы увидеть страницу здесь.</div>
     <div class="canvasbox" id="canvasbox" hidden><canvas id="page"></canvas></div>
   </div>
   <div class="small" id="status" style="margin-top:10px">Инициализация...</div>
@@ -80,7 +80,7 @@ let activeEditIndex = null;
 
 (async()=>{
   try {
-    $('status').textContent='Загрузка движка PDF...';
+    $('status').textContent='Загрузка движка...';
     await loadScript([
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
@@ -96,7 +96,7 @@ let activeEditIndex = null;
     ]);
 
     libsReady = true;
-    $('status').textContent='Готово. Выберите PDF-файл.';
+    $('status').textContent='Готово. Выберите файл.';
   } catch(err) {
     $('status').textContent = 'Ошибка сети.';
     console.error(err);
@@ -123,7 +123,7 @@ $('customText').addEventListener('input', () => {
 let isPickerActive = false;
 $('pickerToggle').addEventListener('click', () => {
   if(!baseCanvas) {
-    alert('Сначала загрузите PDF!');
+    alert('Сначала загрузите файл!');
     return;
   }
   isPickerActive = !isPickerActive;
@@ -144,7 +144,7 @@ $('file').addEventListener('change', async e => {
       alert('Библиотеки еще загружаются!');
       return;
     }
-    $('status').textContent = 'Чтение PDF и распознавание текста...';
+    $('status').textContent = 'Чтение и распознавание текста...';
     const bytes = await f.arrayBuffer();
     
     pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
@@ -167,7 +167,7 @@ $('file').addEventListener('change', async e => {
     });
 
     baseCanvas = document.createElement('canvas');
-    baseCanvas.width = Math.ceil(vp.width);
+    baseCanvas.width = Math.ceil(vp.wdth);
     baseCanvas.height = Math.ceil(vp.height);
     
     await page.render({
