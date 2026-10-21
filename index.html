@@ -167,9 +167,13 @@ $('file').addEventListener('change', async e => {
     });
 
     baseCanvas = document.createElement('canvas');
-    baseCanvas.width = Math.ceil(vp.wdth);
+    baseCanvas.width = Math.ceil(vp.width);
     baseCanvas.height = Math.ceil(vp.height);
     
+    if (!Number.isFinite(baseCanvas.width) || !Number.isFinite(baseCanvas.height) || baseCanvas.width <= 0 || baseCanvas.height <= 0) {
+      throw new Error('PDF-страница имеет некорректный размер. Попробуйте другой PDF.');
+    }
+
     await page.render({
       canvasContext: baseCanvas.getContext('2d'),
       viewport: vp
@@ -287,7 +291,7 @@ function newDateText(){
 }
 
 function compose(){
-  if(!baseCanvas) return null;
+  if(!baseCanvas || baseCanvas.width <= 0 || baseCanvas.height <= 0) return null;
   const c = document.createElement('canvas');
   c.width = baseCanvas.width;
   c.height = baseCanvas.height;
@@ -335,8 +339,9 @@ function compose(){
 }
 
 function drawPreview(){
-  if(!baseCanvas) return;
+  if(!baseCanvas || baseCanvas.width <= 0 || baseCanvas.height <= 0) return;
   const c = compose();
+  if(!c || c.width <= 0 || c.height <= 0) return;
   const out = $('page');
   out.width = c.width;
   out.height = c.height;
@@ -352,6 +357,8 @@ $('save').addEventListener('click', () => {
   }
   try {
     const c = compose();
+    if(!c || c.width <= 0 || c.height <= 0) throw new Error('Предпросмотр пустой. Загрузите PDF заново.');
+    if(!window.jspdf) throw new Error('Модуль экспорта ещё не загрузился.');
     const { jsPDF } = window.jspdf;
     const orient = c.width >= c.height ? 'landscape' : 'portrait';
     const doc = new jsPDF({
