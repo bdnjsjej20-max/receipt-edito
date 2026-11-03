@@ -1,0 +1,10 @@
+{
+  "name": "receipt-edito",
+  "version": "1.0.0",
+  "description": "Receipt editor",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}
